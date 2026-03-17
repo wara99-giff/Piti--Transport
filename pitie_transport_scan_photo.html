@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pitié Transport</title>
+  <style>
+    :root{
+      --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+      --blue:#2563eb; --orange:#f59e0b; --green:#16a34a; --red:#dc2626; --soft:#eff6ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:980px;margin:0 auto;padding:14px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+    h1{margin:0 0 6px;font-size:28px}
+    h2{margin:0 0 8px;font-size:20px}
+    .sub{color:var(--muted);font-size:14px;margin-bottom:10px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .grid1{display:grid;grid-template-columns:1fr;gap:10px}
+    input, button, textarea, select{
+      width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-size:16px;background:#fff
+    }
+    textarea{min-height:110px;resize:vertical}
+    button{font-weight:700;cursor:pointer}
+    .btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .btn-light{background:var(--soft);color:var(--blue);border-color:#bfdbfe}
+    .btn-orange{background:var(--orange);color:#fff;border-color:var(--orange)}
+    .btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+    .btn-red{background:var(--red);color:#fff;border-color:var(--red)}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+    .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+    .stat b{display:block;font-size:24px;margin-bottom:4px}
+    .small{font-size:13px;color:var(--muted)}
+    .mission{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+    .mission.done{border-color:#86efac;background:#f0fdf4}
+    .mission.picked{border-color:#fcd34d;background:#fffbeb}
+    .topline{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+    .name{font-size:18px;font-weight:800;margin-bottom:4px}
+    .badge{font-size:12px;padding:6px 10px;border-radius:999px;font-weight:700;white-space:nowrap}
+    .todo-badge{background:#e5e7eb;color:#374151}
+    .picked-badge{background:#fef3c7;color:#92400e}
+    .done-badge{background:#dcfce7;color:#166534}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .meta div{background:#f9fafb;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:14px}
+    .actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+    .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .preview{max-width:100%;border:1px solid var(--line);border-radius:14px}
+    .status{font-size:14px;color:var(--muted)}
+    .ok{color:#166534;font-weight:700}
+    .warn{color:#92400e;font-weight:700}
+    @media (max-width:700px){.grid,.grid3,.stats,.meta,.actions,.toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Pitié Transport</h1>
+    <div class="sub">Ajoute automatiquement les patients à partir d’une photo de ta feuille</div>
+
+    <div class="grid1">
+      <input id="dateLabel" placeholder="Date / service" value="Mardi 17 mars 2026">
+      <input id="search" placeholder="Rechercher patient, chambre, service, destination">
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="sTotal">0</b><span class="small">Total</span></div>
+      <div class="stat"><b id="sTodo">0</b><span class="small">À faire</span></div>
+      <div class="stat"><b id="sPicked">0</b><span class="small">Récupérés</span></div>
+      <div class="stat"><b id="sDone">0</b><span class="small">Déposés</span></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn-light" onclick="resetAll()">Tout effacer</button>
+      <button class="btn-light" onclick="exportJSON()">Exporter</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scanner la feuille du jour</h2>
+    <div class="sub">Choisis une photo de la feuille. L’appli tente de lire le texte puis d’ajouter les patients automatiquement.</div>
+    <div class="grid">
+      <div class="grid1">
+        <input id="photoInput" type="file" accept="image/*" capture="environment">
+        <button class="btn-blue" onclick="scanPhoto()">Lire la photo et ajouter les patients</button>
+        <div id="scanStatus" class="status">Aucune photo traitée.</div>
+      </div>
+      <div>
+        <img id="preview" class="preview" style="display:none;" alt="Aperçu photo">
+      </div>
+    </div>
+    <div class="grid" style="margin-top:10px;">
+      <textarea id="ocrText" placeholder="Le texte lu apparaîtra ici"></textarea>
+      <textarea id="parseLog" placeholder="Les lignes ajoutées ou ignorées apparaîtront ici"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ajouter une mission manuellement</h2>
+    <div class="grid3">
+      <input id="fTime" placeholder="Heure ex: 09:50">
+      <input id="fPatient" placeholder="Nom du patient">
+      <input id="fDeparture" placeholder="Service de départ">
+      <input id="fRoom" placeholder="Chambre">
+      <input id="fDestination" placeholder="Destination">
+      <button class="btn-blue" onclick="addMission()">Ajouter</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const KEY = "pitie_transport_auto_scan_v1";
+const META = "pitie_transport_auto_scan_meta_v1";
+
+function loadData(){
+  const raw = localStorage.getItem(KEY);
+  if(!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+function saveData(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
+
+function loadMeta(){
+  const raw = localStorage.getItem(META);
+  if(raw){
+    try{
+      const meta = JSON.parse(raw);
+      document.getElementById('dateLabel').value = meta.dateLabel || '';
+    }catch{}
+  }
+}
+function saveMeta(){
+  localStorage.setItem(META, JSON.stringify({ dateLabel: document.getElementById('dateLabel').value }));
+}
+
+function statusOf(m){
+  if(m.dropped) return "Déposé";
+  if(m.picked) return "Récupéré";
+  return "À faire";
+}
+
+function render(){
+  saveMeta();
+  const search = document.getElementById('search').value.trim().toLowerCase();
+  const data = loadData().sort((a,b)=> (a.time || '').localeCompare(b.time || ''));
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  const filtered = data.filter(m => {
+    const txt = [m.time,m.patient,m.departure,m.room,m.destination].join(' ').toLowerCase();
+    return !search || txt.includes(search);
+  });
+
+  filtered.forEach((m) => {
+    const trueIndex = data.findIndex((x, idx) =>
+      idx >= 0 &&
+      x.time===m.time && x.patient===m.patient && x.departure===m.departure &&
+      x.room===m.room && x.destination===m.destination && x.picked===m.picked && x.dropped===m.dropped
+    );
+
+    const div = document.createElement('div');
+    div.className = 'mission ' + (m.dropped ? 'done' : (m.picked ? 'picked' : ''));
+    div.innerHTML = `
+      <div class="topline">
+        <div>
+          <div class="name">${escapeHtml(m.patient)}</div>
+          <div class="small">${escapeHtml(document.getElementById('dateLabel').value || '')}</div>
+        </div>
+        <div class="badge ${m.dropped ? 'done-badge' : (m.picked ? 'picked-badge' : 'todo-badge')}">${statusOf(m)}</div>
+      </div>
+
+      <div class="meta">
+        <div><b>Heure</b><br>${escapeHtml(m.time || '-')}</div>
+        <div><b>Chambre</b><br>${escapeHtml(m.room || '-')}</div>
+        <div><b>Service départ</b><br>${escapeHtml(m.departure || '-')}</div>
+        <div><b>Destination</b><br>${escapeHtml(m.destination || '-')}</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-orange" onclick="togglePicked(${trueIndex})">${m.picked ? 'Annuler récupéré' : 'Récupéré'}</button>
+        <button class="btn-green" onclick="toggleDropped(${trueIndex})">${m.dropped ? 'Annuler déposé' : 'Déposé'}</button>
+        <button class="btn-red" onclick="deleteMission(${trueIndex})">Supprimer</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  updateStats(loadData());
+}
+
+function updateStats(data){
+  document.getElementById('sTotal').textContent = data.length;
+  document.getElementById('sTodo').textContent = data.filter(x => !x.picked && !x.dropped).length;
+  document.getElementById('sPicked').textContent = data.filter(x => x.picked && !x.dropped).length;
+  document.getElementById('sDone').textContent = data.filter(x => x.dropped).length;
+}
+
+function addMission(){
+  const time = document.getElementById('fTime').value.trim();
+  const patient = document.getElementById('fPatient').value.trim();
+  const departure = document.getElementById('fDeparture').value.trim();
+  const room = document.getElementById('fRoom').value.trim();
+  const destination = document.getElementById('fDestination').value.trim();
+
+  if(!time || !patient || !departure || !destination){
+    alert("Remplis au moins heure, patient, service de départ et destination.");
+    return;
+  }
+
+  const data = loadData();
+  data.push({time, patient, departure, room, destination, picked:false, dropped:false});
+  saveData(data);
+
+  document.getElementById('fTime').value = '';
+  document.getElementById('fPatient').value = '';
+  document.getElementById('fDeparture').value = '';
+  document.getElementById('fRoom').value = '';
+  document.getElementById('fDestination').value = '';
+  render();
+}
+
+function togglePicked(i){
+  const data = loadData();
+  if(i < 0) return;
+  data[i].picked = !data[i].picked;
+  if(!data[i].picked) data[i].dropped = false;
+  saveData(data);
+  render();
+}
+
+function toggleDropped(i){
+  const data = loadData();
+  if(i < 0) return;
+  data[i].dropped = !data[i].dropped;
+  if(data[i].dropped) data[i].picked = true;
+  saveData(data);
+  render();
+}
+
+function deleteMission(i){
+  const data = loadData();
+  if(i < 0) return;
+  if(!confirm("Supprimer cette mission ?")) return;
+  data.splice(i, 1);
+  saveData(data);
+  render();
+}
+
+function resetAll(){
+  if(!confirm("Tout effacer ?")) return;
+  localStorage.removeItem(KEY);
+  localStorage.removeItem(META);
+  document.getElementById('ocrText').value = '';
+  document.getElementById('parseLog').value = '';
+  document.getElementById('scanStatus').textContent = 'Liste effacée.';
+  render();
+}
+
+function exportJSON(){
+  const payload = {
+    date: document.getElementById('dateLabel').value,
+    missions: loadData()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pitie-transport-export.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function normalizeText(t){
+  return t
+    .replace(/[|]/g, ' ')
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[—–]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function looksLikeTime(line){
+  return /\b\d{1,2}[:hH]\d{2}\b/.test(line);
+}
+function extractTime(line){
+  const m = line.match(/\b(\d{1,2})[:hH](\d{2})\b/);
+  if(!m) return '';
+  return m[1].padStart(2,'0') + ':' + m[2];
+}
+function extractRoom(line){
+  const m = line.match(/\b(3\d{2}|2\d{2}|1\d{2}|4\d{2})\b/);
+  return m ? m[1] : '';
+}
+function looksLikeServiceOrDestination(line){
+  return /\b\d{2}[A-Z]{3,}\b/i.test(line) || /\b(IRM|EEG|EMG|TEP|SCA|CSA|ECH|VAS|BNM|CS|EP)\b/i.test(line);
+}
+function cleanLine(line){
+  return normalizeText(line).replace(/^\W+|\W+$/g,'').trim();
+}
+
+function parseOCRText(raw){
+  const lines = raw.split(/\n+/).map(cleanLine).filter(Boolean);
+  const added = [];
+  const log = [];
+  let i = 0;
+
+  while(i < lines.length){
+    const line = lines[i];
+
+    if(!looksLikeTime(line)){ i++; continue; }
+
+    const time = extractTime(line);
+    let patient = '';
+    let departure = '';
+    let room = '';
+    let destination = '';
+
+    const bucket = [];
+    for(let j=i+1; j<Math.min(i+6, lines.length); j++){
+      if(looksLikeTime(lines[j])) break;
+      bucket.push(lines[j]);
+    }
+
+    for(const b of bucket){
+      if(!patient && !looksLikeServiceOrDestination(b) && !extractRoom(b) && b.length > 3){
+        patient = b;
+        continue;
+      }
+      if(!departure && /\b\d{2}[A-Z]{3,}\b/i.test(b)){
+        departure = b;
+        continue;
+      }
+      if(!room && extractRoom(b)){
+        room = extractRoom(b);
+        continue;
+      }
+      if(!destination){
+        destination = b;
+      }
+    }
+
+    if(!patient){
+      patient = bucket.find(x => x.length > 3) || '';
+    }
+    if(!departure){
+      const depCandidate = bucket.find(x => /\b\d{2}[A-Z]{3,}\b/i.test(x));
+      if(depCandidate) departure = depCandidate;
+    }
+    if(!destination){
+      const last = bucket[bucket.length-1] || '';
+      if(last && last !== patient && last !== departure) destination = last;
+    }
+
+    if(time && patient && (departure || destination)){
+      added.push({
+        time,
+        patient,
+        departure: departure || '',
+        room: room || '',
+        destination: destination || '',
+        picked:false,
+        dropped:false
+      });
+      log.push("Ajouté : " + [time, patient, departure, room, destination].filter(Boolean).join(" | "));
+    } else {
+      log.push("Ignoré : " + [line].concat(bucket).join(" | "));
+    }
+
+    i += Math.max(1, bucket.length + 1);
+  }
+
+  return {added, log};
+}
+
+async function scanPhoto(){
+  const input = document.getElementById('photoInput');
+  const status = document.getElementById('scanStatus');
+  const ocrText = document.getElementById('ocrText');
+  const parseLog = document.getElementById('parseLog');
+  const preview = document.getElementById('preview');
+
+  if(!input.files || !input.files[0]){
+    alert("Choisis d'abord une photo.");
+    return;
+  }
+
+  const file = input.files[0];
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+
+  status.innerHTML = '<span class="warn">Lecture en cours...</span>';
+  ocrText.value = '';
+  parseLog.value = '';
+
+  try{
+    const result = await Tesseract.recognize(file, 'fra+eng');
+    const text = result.data.text || '';
+    ocrText.value = text;
+
+    const parsed = parseOCRText(text);
+    const data = loadData();
+
+    for(const m of parsed.added){
+      data.push(m);
+    }
+    saveData(data);
+    render();
+
+    parseLog.value = parsed.log.join('\n');
+    status.innerHTML = '<span class="ok">' + parsed.added.length + ' patient(s) ajouté(s).</span> Vérifie quand même, car l’OCR peut mal lire certains noms.';
+  } catch(err){
+    status.innerHTML = 'Erreur de lecture de la photo.';
+    parseLog.value = String(err);
+  }
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('dateLabel').addEventListener('input', render);
+
+loadMeta();
+render();
+</script>
+</body>
+</html>
